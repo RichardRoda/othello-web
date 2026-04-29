@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Othello</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+  <!-- Screen 1: Color Selection -->
+  <div id="screen-select" class="screen active">
+    <h1>Othello</h1>
+    <p class="prompt">Choose your color:</p>
+    <div class="color-buttons">
+      <button id="btn-black" class="color-btn">Play as Black</button>
+      <button id="btn-white" class="color-btn">Play as White</button>
+    </div>
+    <p class="note">Black moves first</p>
+  </div>
+
+  <!-- Screen 2: Game Board -->
+  <div id="screen-game" class="screen">
+    <div class="game-layout">
+      <div class="score-bar">
+        <span id="score-black">Black: 2</span>
+        <span id="score-white">White: 2</span>
+      </div>
+      <div class="board-area">
+        <canvas id="board-canvas"></canvas>
+      </div>
+      <div class="status-bar">
+        <span id="status-text">Thinking...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screen 3: Game Over -->
+  <div id="screen-over" class="screen">
+    <h2 id="result-text">You win!</h2>
+    <p id="final-score">Final score: Black 32 - White 32</p>
+    <button id="btn-play-again" class="color-btn">Play Again</button>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
