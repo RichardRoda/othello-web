@@ -1,0 +1,18 @@
+[package]
+name = "othello-web"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+othello = { path = "../othello-rust", default-features = false, features = ["serde"] }
+wasm-bindgen = "0.2"
+serde-wasm-bindgen = "0.6"
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+
+[profile.release]
+opt-level = "z"   # Optimise for binary size
+lto = true
