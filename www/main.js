@@ -3,20 +3,22 @@
 import init, { OthelloGame, get_ai_move } from './othello_web.js';
 
 // ── Constants ───────────────────────────────────────────────────
-const AI_DEPTH = 6;           // Extension point for difficulty selection
+const AI_DEPTH = 6;           // Depth 6 — workers have 90s timeout before fallback
 const AI_FALLBACK_DEPTH = 3;  // Used when all workers fail
 
 // ── Worker pool ──────────────────────────────────────────────────
 const NUM_WORKERS = navigator.hardwareConcurrency || 4;
-const workers = Array.from({ length: NUM_WORKERS }, () => new Worker('./worker.js'));
+const workers = Array.from({ length: NUM_WORKERS }, () => new Worker('./worker.js', { type: 'module' }));
 
 const canShareMemory = typeof SharedArrayBuffer !== 'undefined';
-if (!canShareMemory) {
-    console.info(
-        'SharedArrayBuffer unavailable — workers search independently. ' +
-        'Add COOP/COEP headers to nginx to enable inter-worker alpha sharing.'
-    );
+
+// Pack a float64 into the BigInt64 bit pattern that Atomics can handle.
+function floatToBits(f) {
+    const buf = new ArrayBuffer(8);
+    new DataView(buf).setFloat64(0, f);
+    return new DataView(buf).getBigInt64(0);
 }
+
 
 // Pre-warm all workers: send an init message so WASM loads before the first move
 const workerReady = Promise.all(
@@ -71,11 +73,11 @@ function drawBoard(board, validMoves, isHumanTurn) {
     const size = canvas.width;
     const cell = size / 8;
 
-    ctx.fillStyle = '#0f0f23';
+    ctx.fillStyle = '#1a6b2a';
     ctx.fillRect(0, 0, size, size);
 
     // Draw grid
-    ctx.strokeStyle = '#333';
+    ctx.strokeStyle = '#145222';
     ctx.lineWidth = 2;
     for (let i = 1; i < 8; i++) {
         const pos = i * cell;
@@ -96,12 +98,12 @@ function drawBoard(board, validMoves, isHumanTurn) {
             const y = row * cell + cell / 2;
             const radius = cell * 0.4;
 
-            if (board[row][col] === 'Black') {
+            if (board.grid[row][col] === 'Black') {
                 ctx.fillStyle = '#000';
                 ctx.beginPath();
                 ctx.arc(x, y, radius, 0, 2 * Math.PI);
                 ctx.fill();
-            } else if (board[row][col] === 'White') {
+            } else if (board.grid[row][col] === 'White') {
                 ctx.fillStyle = '#fff';
                 ctx.beginPath();
                 ctx.arc(x, y, radius, 0, 2 * Math.PI);
@@ -178,7 +180,7 @@ function showGameOver() {
     const winner = wasmGame.get_winner();
     const score = JSON.parse(wasmGame.get_score());
 
-    if (winner === 'null') {
+    if (winner === null) {
         resultText.textContent = 'Draw!';
     } else if (winner === humanColor) {
         resultText.textContent = 'You win!';
@@ -228,36 +230,61 @@ function partition(arr, n) {
 function dispatchWorker(worker, payload, timeoutMs) {
     return new Promise(resolve => {
         const timer = setTimeout(() => {
-            resolve(null); // timeout
+            worker.removeEventListener('message', handler);
+            worker.removeEventListener('error', errorHandler);
+            resolve(null);
         }, timeoutMs);
 
         const handler = ({ data }) => {
             clearTimeout(timer);
             worker.removeEventListener('message', handler);
+            worker.removeEventListener('error', errorHandler);
             resolve(data);
         };
 
+        const errorHandler = (e) => {
+            clearTimeout(timer);
+            worker.removeEventListener('message', handler);
+            worker.removeEventListener('error', errorHandler);
+            console.error('Worker error:', e.message);
+            resolve(null);
+        };
+
         worker.addEventListener('message', handler);
+        worker.addEventListener('error', errorHandler);
         worker.postMessage(payload);
     });
+}
+
+// Heuristic priority for root move ordering: corners > edges > interior > X-squares.
+// Mirrors what the Rust minimax does internally so alpha rises fast and pruning is effective.
+function rootMoveScore({ row, col }) {
+    const isCorner  = (row === 0 || row === 7) && (col === 0 || col === 7);
+    const isXSquare = (row === 1 || row === 6) && (col === 1 || col === 6);
+    const isEdge    = row === 0 || row === 7 || col === 0 || col === 7;
+    if (isCorner)  return 3;
+    if (isEdge)    return 2;
+    if (isXSquare) return 0;
+    return 1;
 }
 
 async function getAiMove(game) {
     const validMoves = JSON.parse(game.get_valid_moves());
     if (validMoves.length === 0) return null;
 
+    // Order best moves first so alpha rises quickly across workers.
+    const orderedMoves = [...validMoves].sort((a, b) => rootMoveScore(b) - rootMoveScore(a));
+
     const gameJson = game.to_json();
-    const activeWorkers = Math.min(NUM_WORKERS, validMoves.length);
-    const chunks = partition(validMoves, activeWorkers);
+    const activeWorkers = Math.min(NUM_WORKERS, orderedMoves.length);
+    const chunks = partition(orderedMoves, activeWorkers);
     const timeoutMs = AI_DEPTH * 15_000;
 
-    // Allocate a fresh SharedArrayBuffer per turn (starts at -Infinity)
     let sharedAlpha = null;
     if (canShareMemory) {
-        const sab = new SharedArrayBuffer(8); // one float64
-        const sharedAlphaView = new Float64Array(sab);
-        sharedAlphaView[0] = -Infinity;
-        sharedAlpha = sharedAlphaView;
+        const sab = new SharedArrayBuffer(8);
+        sharedAlpha = new BigInt64Array(sab);
+        Atomics.store(sharedAlpha, 0, floatToBits(-Infinity));
     }
 
     const promises = chunks.map((chunk, i) =>
@@ -265,7 +292,7 @@ async function getAiMove(game) {
             gameJson,
             moves: chunk,
             depth: AI_DEPTH,
-            sharedAlpha
+            sharedAlpha,
         }, timeoutMs)
     );
 
@@ -275,7 +302,7 @@ async function getAiMove(game) {
     if (valid.length === 0) {
         // All workers failed — synchronous fallback at reduced depth
         console.warn('All workers failed, using synchronous fallback');
-        return fallbackAiMove(game, validMoves);
+        return fallbackAiMove(game, orderedMoves);
     }
 
     return valid.reduce((best, r) => r.score > best.score ? r : best);
@@ -284,14 +311,7 @@ async function getAiMove(game) {
 function fallbackAiMove(game, validMoves) {
     let best = null;
     for (const { row, col } of validMoves) {
-        const result = get_ai_move(
-            game.to_json(),
-            AI_FALLBACK_DEPTH,
-            row,
-            col,
-            -Infinity
-        );
-        const score = result.score;
+        const score = get_ai_move(game.to_json(), AI_FALLBACK_DEPTH, row, col, -Infinity);
         if (!best || score > best.score) {
             best = { move: { row, col }, score };
         }
@@ -305,7 +325,7 @@ async function main() {
     await init();
 
     // Wait for workers to be ready
-    await workerReady();
+    await workerReady;
 
     // Set up event listeners
     document.getElementById('btn-black').addEventListener('click', () => startGame('Black'));

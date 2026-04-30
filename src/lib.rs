@@ -2,6 +2,11 @@ use wasm_bindgen::prelude::*;
 use othello::{Game, GameState, Player, Position, ExecutorKind};
 use othello::minimax::MinimaxPlayer;
 
+#[wasm_bindgen(start)]
+pub fn init_panic_hook() {
+    console_error_panic_hook::set_once();
+}
+
 /// Wraps the othello-rust Game for use from JavaScript via wasm-bindgen.
 #[wasm_bindgen]
 pub struct OthelloGame {
@@ -86,16 +91,14 @@ impl OthelloGame {
 /// `depth` is an extension point for future difficulty selection.
 /// Currently always called with AI_DEPTH = 6 from main.js.
 #[wasm_bindgen]
-pub fn get_ai_move(game_json: &str, depth: usize, row: usize, col: usize, alpha: f64) -> JsValue {
+pub fn get_ai_move(game_json: &str, depth: usize, row: usize, col: usize, alpha: f64) -> f64 {
     let game: Game = serde_json::from_str(game_json)
         .expect("get_ai_move: invalid game JSON");
 
     let player = MinimaxPlayer::with_depth("AI", depth)
-        .with_time_limit_ms(30_000)
         .with_executor(ExecutorKind::Sequential);
 
-    let score = player.best_move_from(&game, Position::new(row, col), alpha);
-    serde_wasm_bindgen::to_value(&serde_json::json!({ "score": score })).unwrap()
+    player.best_move_from(&game, Position::new(row, col), alpha)
 }
 
 #[cfg(test)]

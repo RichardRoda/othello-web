@@ -159,7 +159,7 @@ if (Symbol.dispose) OthelloGame.prototype[Symbol.dispose] = OthelloGame.prototyp
  * @param {number} row
  * @param {number} col
  * @param {number} alpha
- * @returns {any}
+ * @returns {number}
  */
 export function get_ai_move(game_json, depth, row, col, alpha) {
     const ptr0 = passStringToWasm0(game_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
@@ -167,67 +167,41 @@ export function get_ai_move(game_json, depth, row, col, alpha) {
     const ret = wasm.get_ai_move(ptr0, len0, depth, row, col, alpha);
     return ret;
 }
+
+export function init_panic_hook() {
+    wasm.init_panic_hook();
+}
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,
-        __wbg_Error_3639a60ed15f87e7: function(arg0, arg1) {
-            const ret = Error(getStringFromWasm0(arg0, arg1));
+        __wbg___wbindgen_throw_9c75d47bf9e7731e: function(arg0, arg1) {
+            throw new Error(getStringFromWasm0(arg0, arg1));
+        },
+        __wbg_error_a6fa202b58aa1cd3: function(arg0, arg1) {
+            let deferred0_0;
+            let deferred0_1;
+            try {
+                deferred0_0 = arg0;
+                deferred0_1 = arg1;
+                console.error(getStringFromWasm0(arg0, arg1));
+            } finally {
+                wasm.__wbindgen_free(deferred0_0, deferred0_1, 1);
+            }
+        },
+        __wbg_new_227d7c05414eb861: function() {
+            const ret = new Error();
             return ret;
         },
-        __wbg___wbindgen_debug_string_07cb72cfcc952e2b: function(arg0, arg1) {
-            const ret = debugString(arg1);
+        __wbg_stack_3b0d974bbf31e44f: function(arg0, arg1) {
+            const ret = arg1.stack;
             const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
             const len1 = WASM_VECTOR_LEN;
             getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
             getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
         },
-        __wbg___wbindgen_is_string_eddc07a3efad52e6: function(arg0) {
-            const ret = typeof(arg0) === 'string';
-            return ret;
-        },
-        __wbg___wbindgen_throw_9c75d47bf9e7731e: function(arg0, arg1) {
-            throw new Error(getStringFromWasm0(arg0, arg1));
-        },
-        __wbg_new_2fad8ca02fd00684: function() {
-            const ret = new Object();
-            return ret;
-        },
-        __wbg_new_3baa8d9866155c79: function() {
-            const ret = new Array();
-            return ret;
-        },
-        __wbg_new_46ae4e4ff2a07a64: function() {
-            const ret = new Map();
-            return ret;
-        },
-        __wbg_set_6be42768c690e380: function(arg0, arg1, arg2) {
-            arg0[arg1] = arg2;
-        },
-        __wbg_set_82f7a370f604db70: function(arg0, arg1, arg2) {
-            const ret = arg0.set(arg1, arg2);
-            return ret;
-        },
-        __wbg_set_f614f6a0608d1d1d: function(arg0, arg1, arg2) {
-            arg0[arg1 >>> 0] = arg2;
-        },
-        __wbindgen_cast_0000000000000001: function(arg0) {
-            // Cast intrinsic for `F64 -> Externref`.
-            const ret = arg0;
-            return ret;
-        },
-        __wbindgen_cast_0000000000000002: function(arg0) {
-            // Cast intrinsic for `I64 -> Externref`.
-            const ret = arg0;
-            return ret;
-        },
-        __wbindgen_cast_0000000000000003: function(arg0, arg1) {
+        __wbindgen_cast_0000000000000001: function(arg0, arg1) {
             // Cast intrinsic for `Ref(String) -> Externref`.
             const ret = getStringFromWasm0(arg0, arg1);
-            return ret;
-        },
-        __wbindgen_cast_0000000000000004: function(arg0) {
-            // Cast intrinsic for `U64 -> Externref`.
-            const ret = BigInt.asUintN(64, arg0);
             return ret;
         },
         __wbindgen_init_externref_table: function() {
@@ -249,71 +223,6 @@ function __wbg_get_imports() {
 const OthelloGameFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_othellogame_free(ptr, 1));
-
-function debugString(val) {
-    // primitive types
-    const type = typeof val;
-    if (type == 'number' || type == 'boolean' || val == null) {
-        return  `${val}`;
-    }
-    if (type == 'string') {
-        return `"${val}"`;
-    }
-    if (type == 'symbol') {
-        const description = val.description;
-        if (description == null) {
-            return 'Symbol';
-        } else {
-            return `Symbol(${description})`;
-        }
-    }
-    if (type == 'function') {
-        const name = val.name;
-        if (typeof name == 'string' && name.length > 0) {
-            return `Function(${name})`;
-        } else {
-            return 'Function';
-        }
-    }
-    // objects
-    if (Array.isArray(val)) {
-        const length = val.length;
-        let debug = '[';
-        if (length > 0) {
-            debug += debugString(val[0]);
-        }
-        for(let i = 1; i < length; i++) {
-            debug += ', ' + debugString(val[i]);
-        }
-        debug += ']';
-        return debug;
-    }
-    // Test for built-in
-    const builtInMatches = /\[object ([^\]]+)\]/.exec(toString.call(val));
-    let className;
-    if (builtInMatches && builtInMatches.length > 1) {
-        className = builtInMatches[1];
-    } else {
-        // Failed to match the standard '[object ClassName]'
-        return toString.call(val);
-    }
-    if (className == 'Object') {
-        // we're a user defined class or Object
-        // JSON.stringify avoids problems with cycles, and is generally much
-        // easier than looping through ownProperties of `val`.
-        try {
-            return 'Object(' + JSON.stringify(val) + ')';
-        } catch (_) {
-            return 'Object';
-        }
-    }
-    // errors
-    if (val instanceof Error) {
-        return `${val.name}: ${val.message}\n${val.stack}`;
-    }
-    // TODO we could test for more things here, like `Set`s and `Map`s.
-    return className;
-}
 
 let cachedDataViewMemory0 = null;
 function getDataViewMemory0() {
