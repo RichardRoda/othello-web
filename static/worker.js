@@ -4,7 +4,7 @@
 
 import init, { get_ai_move } from './othello_web.js';
 
-let wasmReady = init('./othello_web_bg.wasm');
+let wasmReady = init({ module_or_path: './othello_web_bg.wasm' });
 
 function floatToBits(f) {
     const buf = new ArrayBuffer(8);

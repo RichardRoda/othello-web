@@ -352,3 +352,7 @@ async function startGame(color) {
 }
 
 main().catch(console.error);
+
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./service-worker.js');
+}
