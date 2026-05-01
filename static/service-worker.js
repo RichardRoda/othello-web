@@ -1,4 +1,4 @@
-const CACHE = 'othello-v1.1';
+const CACHE = '__CACHE_KEY__';
 const ASSETS = [
   './',
   './index.html',

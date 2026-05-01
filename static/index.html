@@ -16,6 +16,16 @@
       <button id="btn-black" class="color-btn">Play as Black</button>
       <button id="btn-white" class="color-btn">Play as White</button>
     </div>
+    <div class="difficulty-row">
+      <label for="difficulty">Difficulty:</label>
+      <select id="difficulty">
+        <option value="2">Easy</option>
+        <option value="3">Medium</option>
+        <option value="5" selected>Hard</option>
+        <option value="7">Brutal</option>
+        <option value="10">Mega-Brutal</option>
+      </select>
+    </div>
     <p class="note">Black moves first</p>
   </div>
 
@@ -24,6 +34,7 @@
     <div class="game-layout">
       <div class="score-bar">
         <span id="score-black">Black: 2</span>
+        <span id="ai-emoji"></span>
         <span id="score-white">White: 2</span>
       </div>
       <div class="board-area">

@@ -3,8 +3,13 @@
 import init, { OthelloGame, get_ai_move } from './othello_web.js';
 
 // ── Constants ───────────────────────────────────────────────────
-const AI_DEPTH = 6;           // Depth 6 — workers have 90s timeout before fallback
+const VALID_DEPTHS = new Set([2, 3, 5, 7, 10]);
 const AI_FALLBACK_DEPTH = 3;  // Used when all workers fail
+
+function getAiDepth() {
+    const val = parseInt(document.getElementById('difficulty')?.value, 10);
+    return VALID_DEPTHS.has(val) ? val : 2;
+}
 
 // ── Worker pool ──────────────────────────────────────────────────
 const NUM_WORKERS = navigator.hardwareConcurrency || 4;
@@ -38,6 +43,7 @@ const workerReady = Promise.all(
 let wasmGame = null;       // OthelloGame WASM instance
 let humanColor = null;     // "Black" or "White"
 let gameActive = false;
+let aiDepth = 2;
 
 // ── DOM elements ─────────────────────────────────────────────────
 const screenSelect = document.getElementById('screen-select');
@@ -47,6 +53,7 @@ const canvas       = document.getElementById('board-canvas');
 const ctx          = canvas.getContext('2d');
 const scoreBlack   = document.getElementById('score-black');
 const scoreWhite   = document.getElementById('score-white');
+const aiEmojiEl    = document.getElementById('ai-emoji');
 const statusText   = document.getElementById('status-text');
 const resultText   = document.getElementById('result-text');
 const finalScore   = document.getElementById('final-score');
@@ -135,6 +142,12 @@ function setStatus(msg) {
     statusText.textContent = msg;
 }
 
+function setAiEmoji(score) {
+    if (score === Infinity)       aiEmojiEl.textContent = '😄';
+    else if (score === -Infinity) aiEmojiEl.textContent = '😢';
+    else                          aiEmojiEl.textContent = '';
+}
+
 // ── Turn management ───────────────────────────────────────────────
 function isHumanTurn() {
     return wasmGame.get_current_player() === humanColor;
@@ -154,6 +167,7 @@ async function runAiTurn() {
     const aiMove = await getAiMove(wasmGame);
     if (aiMove) {
         wasmGame.make_move(aiMove.move.row, aiMove.move.col);
+        setAiEmoji(aiMove.score);
     }
 
     await advanceTurn();
@@ -278,7 +292,7 @@ async function getAiMove(game) {
     const gameJson = game.to_json();
     const activeWorkers = Math.min(NUM_WORKERS, orderedMoves.length);
     const chunks = partition(orderedMoves, activeWorkers);
-    const timeoutMs = AI_DEPTH * 15_000;
+    const timeoutMs = aiDepth * 15_000;
 
     let sharedAlpha = null;
     if (canShareMemory) {
@@ -291,7 +305,7 @@ async function getAiMove(game) {
         dispatchWorker(workers[i], {
             gameJson,
             moves: chunk,
-            depth: AI_DEPTH,
+            depth: aiDepth,
             sharedAlpha,
         }, timeoutMs)
     );
@@ -339,6 +353,8 @@ async function startGame(color) {
     wasmGame   = new OthelloGame();
     humanColor = color;
     gameActive = true;
+    aiDepth    = getAiDepth();
+    aiEmojiEl.textContent = '';
 
     showScreen('screen-game');
     renderGameScreen(true);
