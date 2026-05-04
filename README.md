@@ -1,34 +1,24 @@
 # othello-web
 
-Continuation of othello-rust: Create a Rust in the Browser (Web assembly) page for othello-rust
+[Click here to play the game](https://richardroda.github.io/othello-web/index.html).
+
+Continuation of othello-rust: Create a Rust in the Browser (Web assembly) page for othello-rust.  This runs the move evaluation logic as native Wasm code in multiple threads.  This is many times faster than normal single-threaded JavaScript.
 
 ## Build and Deploy
 
 Build the deployable WASM bundle:
 
 ```bash
-cd /Users/rroda/projects/othello/othello-web
 ./build.sh
 ```
 
-This produces `www/othello_web.js` and `www/othello_web_bg.wasm` in `www/`.
+This produces the deployable game files in the [www](www) directory.
 
-### nginx Configuration
+The source code is in [static](static) The Rust declarations are in [src/lib.rs](src/lib.rs).
 
-Configure nginx to serve the `www/` directory and enable WebAssembly MIME type:
-
-```nginx
-location /othello-web/ {
-    alias /Users/rroda/projects/othello/othello-web/www/;
-    
-    # Optional headers to support inter-worker alpha value sharing and SharedArrayBuffer support.
-    add_header Cross-Origin-Opener-Policy "same-origin";
-    add_header Cross-Origin-Embedder-Policy "require-corp";
-
-    try_files $uri $uri/ =404;
-}
-
-types {
-    application/wasm wasm;
-}
+Does this really run multi-threaded?  This is Chrome with the game as its only tab and window opened.  The game is evaluating its next move.
 ```
+PID    COMMAND      %CPU  TIME     #TH    #WQ  #PORT MEM    PURG   CMPR PGRP
+12722  Google Chrom 492.9 00:14.01 24/6   3    249-  66M+   28K    0B   455
+```
+All your CPU are belong to us.
